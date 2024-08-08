@@ -11,7 +11,7 @@ import java.util.Objects;
 import java.util.stream.Stream;
 
 /**
- * 扫描指定包下的所以 Class 文件
+ * 扫描指定包下的 .class 文件
  */
 public class ResourceResolver {
 
@@ -22,6 +22,9 @@ public class ResourceResolver {
         this.basePackage = basePackage;
     }
 
+    /**
+     * 扫描 basePackage,返回 basePackage 下的所有 Class
+     */
     public List<Class<?>> scan() {
         final String pkgPath = basePackage.replace('.', '/');
         final ArrayList<Class<?>> allClasses = new ArrayList<>();
