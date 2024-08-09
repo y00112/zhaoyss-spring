@@ -1,5 +1,7 @@
 package com.zhaoyss.ioc;
 
+import com.zhaoyss.exception.BeanCreationException;
+
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 
@@ -37,8 +39,53 @@ public class BeanDefinition {
     Method initMethod;
     Method destroyMethod;
 
+    public BeanDefinition(String name, Class<?> beanClass, Constructor<?> constructor, int order, boolean primary, String initMethodName, String destroyMethodName, Method initMethod,Method destroyMethod) {
+        this.name = name;
+        this.beanClass = beanClass;
+        this.constructor = constructor;
+        this.order = order;
+        this.primary = primary;
+        this.factoryName = null;
+        this.factoryMethod = null;
+        constructor.setAccessible(true);
+        setInitAndDestoryMethod(initMethodName,destroyMethodName,initMethod,destroyMethod);
+    }
+
+    public BeanDefinition(String name, Class<?> beanClass, String factoryName, Method factoryMethod, int order, boolean primary, String initMethodName, String destroyMethodName, Method initMethod, Method destroyMethod) {
+        this.name = name;
+        this.beanClass = beanClass;
+        this.constructor = null;
+        this.factoryName = factoryName;
+        this.factoryMethod = factoryMethod;
+        this.order = order;
+        this.primary = primary;
+        factoryMethod.setAccessible(true);
+        setInitAndDestoryMethod(initMethodName,destroyMethodName,initMethod,destroyMethod);
+    }
+
+    private void setInitAndDestoryMethod(String initMethodName, String destroyMethodName, Method initMethod, Method destroyMethod) {
+        this.initMethodName = initMethodName;
+        this.destroyMethodName =destroyMethodName;
+        if (initMethod != null){
+            initMethod.setAccessible(true);
+        }
+        if (destroyMethod != null){
+            destroyMethod.setAccessible(true);
+        }
+        this.initMethod = initMethod;
+        this.destroyMethod = destroyMethod;
+    }
+
     public String getName() {
         return name;
+    }
+
+    public Object getRequiredInstance(){
+        if (this.instance == null){
+            throw new BeanCreationException(String.format("Instance of bean with name '%s' and type '%s' is not instantiated during current stage.",
+                    this.getName(), this.getBeanClass().getName()));
+        }
+        return this.instance;
     }
 
     public void setName(String name) {

@@ -4,6 +4,7 @@ import com.zhaoyss.annotation.Bean;
 import com.zhaoyss.annotation.Component;
 import com.zhaoyss.annotation.ComponentScan;
 import com.zhaoyss.exception.BeanDefinitionException;
+import jakarta.annotation.Nullable;
 import jakarta.annotation.PostConstruct;
 
 import java.lang.annotation.Annotation;
@@ -44,6 +45,17 @@ public class ClassUtils {
             }
         }
         return a;
+    }
+
+    @Nullable
+    @SuppressWarnings("unchecked")
+    public static <A extends Annotation> A getAnnotation(Annotation[] annos,Class<A> annoClass){
+        for (Annotation anno: annos){
+            if (annoClass.isInstance(anno)){
+                return (A) anno;
+            }
+        }
+        return null;
     }
 
     /**

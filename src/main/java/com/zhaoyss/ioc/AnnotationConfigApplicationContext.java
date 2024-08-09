@@ -1,8 +1,8 @@
 package com.zhaoyss.ioc;
 
 import com.zhaoyss.annotation.*;
-import com.zhaoyss.exception.BeanDefinitionException;
-import com.zhaoyss.exception.NoUniqueBeanDefinitionException;
+import com.zhaoyss.entity.C;
+import com.zhaoyss.exception.*;
 import com.zhaoyss.io.PropertyResolver;
 import com.zhaoyss.io.ResourceResolver;
 import com.zhaoyss.utils.ClassUtils;
@@ -12,9 +12,8 @@ import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
+import java.lang.annotation.Annotation;
+import java.lang.reflect.*;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -25,16 +24,149 @@ public class AnnotationConfigApplicationContext {
 
     final Logger logger = LoggerFactory.getLogger(getClass());
 
+    final PropertyResolver propertyResolver;
+
     Map<String, BeanDefinition> beans;
 
+    // 在创建 Bean实例的时候，跟踪当前正在创建的所有Bean的名称。检查循环依赖问题。
+    Set<String> creatingBeanNames;
+
+
     public AnnotationConfigApplicationContext(Class<?> configClass, PropertyResolver propertyResolver) {
+        this.propertyResolver = propertyResolver;
         // 扫描获取所有Bean的Class类型
         Set<String> beanClassNames = scanForClassNames(configClass);
-        // 装配 BeanDefinition
+        // 创建 Bean 的定义
         this.beans = createBeanDefinitions(beanClassNames);
+        // 创建BeanName检测循环依赖
+        this.creatingBeanNames = new HashSet<>();
+        // 创建 @Configuration 类型的Bean
+        this.beans.values().stream()
+                // 过滤出@Configuration
+                .filter(this::isConfigurationDefinition).sorted().map(def -> {
+                    // 创建Bean实例
+                    createBeanAsEarlySingleton(def);
+                    return def.getName();
+                }).collect(Collectors.toList());
 
+        // 创建其他普通Bean:
+        List<BeanDefinition> defs = this.beans.values().stream()
+                // 过滤出 instance == null 的BeanDefinition
+                .filter(def -> def.getInstance() == null)
+                .collect(Collectors.toList());
 
+        // 循环创建bean的实例
+        for (BeanDefinition def : defs) {
+            // 如果Bean未被创建（可能在其他Bean的构造方法注入前被创建）
+            if (def.getInstance() == null) {
+                // 创建bean
+                createBeanAsEarlySingleton(def);
+            }
+        }
+    }
 
+    /**
+     * 创建一个 Bean，但不进行字段和方法级别的注入。如果创建的Bean不是Configuration，则在构造方法/工厂方法中注入的依赖Bean会自动创建
+     */
+    public Object createBeanAsEarlySingleton(BeanDefinition def) {
+        boolean bool = this.creatingBeanNames.add(def.name);
+        if (!bool) {
+            // 检测到重复创建Bean导致循环依赖
+            throw new UnsatisfiedDependencyException(String.format("Circular dependency detected when create bean '%s'", def.getName()));
+        }
+
+        // 创建方法：构造方法和工厂方法
+        Executable crateFn = def.getFactoryName() == null ?
+                def.getConstructor() : def.getFactoryMethod();
+
+        // 创建参数：
+        Parameter[] parameters = crateFn.getParameters();
+        Annotation[][] parametersAnnos = crateFn.getParameterAnnotations();
+        Object[] args = new Object[parameters.length];
+        for (int i = 0; i < parameters.length; i++) {
+            Parameter param = parameters[i];
+            Annotation[] parametersAnno = parametersAnnos[i];
+            // 从参数获取 @Value 和 @Autowired
+            Value value = ClassUtils.getAnnotation(parametersAnno, Value.class);
+            Autowired autowired = ClassUtils.getAnnotation(parametersAnno, Autowired.class);
+
+            // @Configuration类型的Bean是工厂，不允许使用@Autowired创建
+            final boolean isConfiguration = isConfigurationDefinition(def);
+            if (isConfiguration && autowired != null) {
+                throw new BeanCreationException(
+                        String.format("Cannot specify @Autowired when create @Configuration bean '%s': %s.", def.getName(), def.getBeanClass().getName())
+                );
+            }
+            // 检查 Value 和 Autowired
+            if (value != null && autowired != null) {
+                throw new BeanCreationException(
+                        String.format("在创建 Bean '%s': %s 时，无法同时指定 @Autowired 和 @Value.", def.getName(), def.getBeanClass().getName())
+                );
+            }
+            if (value == null && autowired == null) {
+                throw new BeanCreationException(
+                        String.format("必须指定 @Autowired or @Value 在创建 Bean '%s': %s.", def.getName(), def.getBeanClass().getName())
+                );
+            }
+
+            // 参数类型
+            Class<?> type = param.getType();
+            if (value != null) {
+                // 参数设置为查询到 @Value
+                args[i] = this.propertyResolver.getRequiredProperty(value.value(), type);
+            } else {
+                // 参数是@Autowired.
+                String name = autowired.name();
+                boolean required = autowired.value();
+                // 依赖的BeanDefinition：
+                BeanDefinition dependsOnDef = name.isEmpty() ? findBeanDefinition(type) : findBeanDefinition(name, type);
+                // 获取依赖 Bean 的实例
+                Object autowiredBeanInstance = dependsOnDef.getInstance();
+                if (autowiredBeanInstance == null) {
+                    // 当前依赖Bean尚未初始化，递归调用初始化该依赖Bean
+                    autowiredBeanInstance = createBeanAsEarlySingleton(dependsOnDef);
+                }
+                // 参数设置为依赖的Bean实例
+                args[i] = autowiredBeanInstance;
+            }
+        }
+
+        // 已拿到所有方法参数，创建Bean实例
+        Object instance = null;
+        if (def.getFactoryName() == null) {
+            // 用构造方法创建
+            try {
+                instance = def.getConstructor().newInstance(args);
+            } catch (Exception e) {
+                throw new BeanCreationException(String.format("Exception when create bean '%s': %s", def.getName(), def.getBeanClass().getName()), e);
+            }
+        } else {
+            // 用@Bean 方法创建
+            Object configInstance = getBean(def.getFactoryName());
+            try {
+                instance = def.getFactoryMethod().invoke(configInstance, args);
+            } catch (Exception e) {
+                throw new BeanCreationException(String.format("Exception when create bean '%s': %s", def.getName(), def.getBeanClass().getName()), e);
+            }
+        }
+        def.setInstance(instance);
+        return def.getInstance();
+    }
+
+    /**
+     * 通过Name查找Bean，不存在时抛出 NoSuchBeanDefinitionException
+     */
+    @SuppressWarnings("unchecked")
+    private <T> T getBean(String name) {
+        BeanDefinition def = this.beans.get(name);
+        if (def == null) {
+            throw new NoSuchBeanDefinitionException(String.format("No bean defined with name '%s'.", name));
+        }
+        return (T) def.getRequiredInstance();
+    }
+
+    private boolean isConfigurationDefinition(BeanDefinition def) {
+        return ClassUtils.findAnnotation(def.getBeanClass(), Configuration.class) != null;
     }
 
     private Map<String, BeanDefinition> createBeanDefinitions(Set<String> classNameSet) {
@@ -51,20 +183,13 @@ public class AnnotationConfigApplicationContext {
             // 是否标注 @Component ?
             Component component = ClassUtils.findAnnotation(clazz, Component.class);
             if (component != null) {
+                logger.atDebug().log("found component: {}", clazz.getName());
                 // 获取 Bean 的名称
                 String beanName = ClassUtils.getBeanName(clazz);
-                var def = new BeanDefinition();
-                def.setName(beanName);
-                def.setBeanClass(clazz);
-                def.setConstructor(getSuitableConstructor(clazz));
-                def.setOrder(getOrder(clazz));
-                def.setPrimary(clazz.isAnnotationPresent(Primary.class));
-                // init/destroy 方法名称
-                def.setInitMethodName(null);
-                def.setDestroyMethodName(null);
-                // 查找 PostConstruct 方法
-                def.setInitMethod(ClassUtils.findAnnotationMethod(clazz, PostConstruct.class));
-                def.setDestroyMethod(ClassUtils.findAnnotationMethod(clazz, PreDestroy.class));
+                var def = new BeanDefinition(beanName, clazz, getSuitableConstructor(clazz), getOrder(clazz), clazz.isAnnotationPresent(Primary.class),
+                        null, null,
+                        ClassUtils.findAnnotationMethod(clazz, PostConstruct.class),
+                        ClassUtils.findAnnotationMethod(clazz, PreDestroy.class));
                 addBeanDefinitions(defs, def);
                 // 查找是否有 @configuration:
                 Configuration configuration = ClassUtils.findAnnotation(clazz, Configuration.class);
@@ -77,17 +202,16 @@ public class AnnotationConfigApplicationContext {
         return defs;
     }
 
+
     /**
      * 扫描带有 @Bean 的工厂方法
      *
      * <code>
-     * @Configuration
-     * public class AppConfiguration{
      *
-     *      @Bean
-     *      ZoneId createZone(){
-     *          return ZoneId.of("Z");
-     *      }
+     * @Configuration public class AppConfiguration{
+     * @Bean ZoneId createZone(){
+     * return ZoneId.of("Z");
+     * }
      * }
      * </code>
      */
@@ -113,19 +237,11 @@ public class AnnotationConfigApplicationContext {
                     throw new BeanDefinitionException("@Bean method " + clazz.getName() + "." + method.getName() + " must not return void.");
                 }
 
-                var def = new BeanDefinition();
-                def.setName(ClassUtils.getBeanName(method));
-                def.setBeanClass(beanClass);
-                def.setFactoryName(factoryBeanName);
-                def.setFactoryMethod(method);
-                def.setOrder(getOrder(method));
-                def.setPrimary(method.isAnnotationPresent(Primary.class));
-                // init/destroy 方法名称
-                def.setInitMethodName(bean.initMethod().isEmpty() ? null : bean.initMethod());
-                def.setDestroyMethodName(bean.destroyMethod().isEmpty() ? null : bean.destroyMethod());
-                // 查找 PostConstruct 方法
-                def.setInitMethod(null);
-                def.setDestroyMethod(null);
+                var def = new BeanDefinition(ClassUtils.getBeanName(method), beanClass, factoryBeanName, method, getOrder(method),
+                        method.isAnnotationPresent(Primary.class),
+                        bean.initMethod().isEmpty() ? null : bean.initMethod(),
+                        bean.destroyMethod().isEmpty() ? null : bean.destroyMethod(),
+                        null, null);
                 addBeanDefinitions(defs, def);
             }
         }
@@ -202,6 +318,19 @@ public class AnnotationConfigApplicationContext {
     @Nullable
     public BeanDefinition findBeanDefinition(String name) {
         return this.beans.get(name);
+    }
+
+    public BeanDefinition findBeanDefinition(String name, Class<?> requiredType) {
+        BeanDefinition def = findBeanDefinition(name);
+        if (def == null) {
+            return null;
+        }
+        if (!requiredType.isAssignableFrom(def.getBeanClass())) {
+            throw new BeanNotOfRequiredTypeException(String.format("Autowire required type '%s' but bean '%s' has actual type '%s'.", requiredType.getName(),
+                    name, def.getBeanClass().getName()));
+
+        }
+        return def;
     }
 
     // 根据Type查找若干个BeanDefinition，返回0个或多个:

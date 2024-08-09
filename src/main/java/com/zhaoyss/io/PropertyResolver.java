@@ -69,7 +69,7 @@ public class PropertyResolver {
 
     /**
      * 根据 key 获取 value 值
-     *
+     * <p>
      * key: summer.datasource.auto-commit
      * value: ${AUTO_COMMIT:false}
      *
@@ -95,6 +95,7 @@ public class PropertyResolver {
         }
         return value;
     }
+
     @Nullable
     public <T> T getProperty(String key, Class<T> targetType) {
         String value = getProperty(key);
@@ -122,9 +123,14 @@ public class PropertyResolver {
         }
     }
 
-    private String getRequiredProperty(String key) {
+    public String getRequiredProperty(String key) {
         String value = getProperty(key);
         return Objects.requireNonNull(value, "Property '" + key + "' not found.");
+    }
+
+    public <T> T getRequiredProperty(String key, Class<T> targetType) {
+        T value = getProperty(key, targetType);
+        return Objects.requireNonNull(value, "Property ‘" + key + "' not found.");
     }
 
     @SuppressWarnings("unchecked")

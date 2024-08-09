@@ -11,5 +11,5 @@
 ## context模块：
 - 实现ResourceResolver，扫描指定包下的 .class 文件
 - 实现PropertyResolver，加载并存储配置文件为 K-V 形式，并获取。
-- 创建BeanDefinition，装配 Bean,并设置 BeanDefinition 的属性。
-- 
+- 创建BeanDefinition，并设置 BeanDefinition 的属性。
+- 创建Bean实例，装配Bean。
