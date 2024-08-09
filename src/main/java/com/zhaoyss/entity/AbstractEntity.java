@@ -2,10 +2,13 @@ package com.zhaoyss.entity;
 
 
 
+import com.zhaoyss.annotation.Component;
+
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 
+@Component
 public class AbstractEntity {
     private long id;
 

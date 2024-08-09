@@ -1,6 +1,9 @@
 package com.zhaoyss.entity;
 
 
+import com.zhaoyss.annotation.Component;
+
+@Component
 public class Book extends AbstractEntity{
 
     private String title;

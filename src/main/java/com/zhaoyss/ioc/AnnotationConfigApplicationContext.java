@@ -30,8 +30,11 @@ public class AnnotationConfigApplicationContext {
     public AnnotationConfigApplicationContext(Class<?> configClass, PropertyResolver propertyResolver) {
         // 扫描获取所有Bean的Class类型
         Set<String> beanClassNames = scanForClassNames(configClass);
-        // 创建Bean的定义
+        // 装配 BeanDefinition
         this.beans = createBeanDefinitions(beanClassNames);
+
+
+
     }
 
     private Map<String, BeanDefinition> createBeanDefinitions(Set<String> classNameSet) {
@@ -124,7 +127,6 @@ public class AnnotationConfigApplicationContext {
                 def.setInitMethod(null);
                 def.setDestroyMethod(null);
                 addBeanDefinitions(defs, def);
-                logger.atDebug().log("define bean: {}", def);
             }
         }
     }
@@ -133,9 +135,9 @@ public class AnnotationConfigApplicationContext {
      * 检查并添加 BeanDefinition
      */
     private void addBeanDefinitions(Map<String, BeanDefinition> defs, BeanDefinition def) {
+        logger.atDebug().log("define bean: {}", def);
         if (defs.put(def.getName(), def) != null) {
             throw new BeanDefinitionException("Duplicate bean name: " + def.getName());
-
         }
     }
 

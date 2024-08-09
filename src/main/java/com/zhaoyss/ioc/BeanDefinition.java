@@ -132,4 +132,22 @@ public class BeanDefinition {
     public void setDestroyMethod(Method destroyMethod) {
         this.destroyMethod = destroyMethod;
     }
+
+    @Override
+    public String toString() {
+        return "BeanDefinition{" +
+                "name='" + name + '\'' +
+                ", beanClass=" + beanClass +
+                ", instance=" + instance +
+                ", constructor=" + constructor +
+                ", factoryName='" + factoryName + '\'' +
+                ", factoryMethod=" + factoryMethod +
+                ", order=" + order +
+                ", primary=" + primary +
+                ", initMethodName='" + initMethodName + '\'' +
+                ", destroyMethodName='" + destroyMethodName + '\'' +
+                ", initMethod=" + initMethod +
+                ", destroyMethod=" + destroyMethod +
+                '}';
+    }
 }

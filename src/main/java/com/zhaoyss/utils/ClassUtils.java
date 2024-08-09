@@ -72,7 +72,7 @@ public class ClassUtils {
 
         if (name.isEmpty()) {
             // default name: "HelloWorld" => "helloWorld
-            name = clazz.getName();
+            name = clazz.getSimpleName();
             name = Character.toLowerCase(name.charAt(0)) + name.substring(1);
         }
 
