@@ -1,6 +1,7 @@
 package com.zhaoyss.ioc;
 
 import com.zhaoyss.annotation.*;
+import com.zhaoyss.annotation.Component;
 import com.zhaoyss.entity.C;
 import com.zhaoyss.exception.*;
 import com.zhaoyss.io.PropertyResolver;
@@ -12,9 +13,11 @@ import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.awt.*;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.*;
 import java.util.*;
+import java.util.List;
 import java.util.stream.Collectors;
 
 /**
@@ -63,6 +66,130 @@ public class AnnotationConfigApplicationContext {
                 createBeanAsEarlySingleton(def);
             }
         }
+
+        // 通过字段和 set 方法注入依赖
+        this.beans.values().forEach(def->{
+            injectBean(def);
+        });
+
+        // 调用 init 方法
+        this.beans.values().forEach(def->{
+            initBean(def);
+        });
+    }
+
+    // 注入依赖单不调用 init 方法
+    private void injectBean(BeanDefinition def) {
+        try {
+            injectProperties(def,def.getBeanClass(),def.getInstance());
+        }catch (ReflectiveOperationException e){
+            throw new BeanCreationException(e);
+        }
+    }
+
+    // 在当前类以及父类进行字段和方法注入
+    private void injectProperties(BeanDefinition def, Class<?> clazz, Object bean) throws ReflectiveOperationException {
+        // 在当前类查找 Field 和 Method 并注入
+        for (Field f :clazz.getDeclaredFields()){
+            tryInjectProperties(def,clazz,bean,f);
+        }
+        for (Method m : clazz.getDeclaredMethods()){
+            tryInjectProperties(def,clazz,bean,m);
+        }
+    }
+
+    // 尝试注入单个属性
+    private void tryInjectProperties(BeanDefinition def, Class<?> clazz, Object bean, AccessibleObject acc) throws ReflectiveOperationException {
+        Value value = acc.getAnnotation(Value.class);
+        Autowired autowired = acc.getAnnotation(Autowired.class);
+        if (value == null && autowired == null){
+            return;
+        }
+
+        Field field = null;
+        Method method = null;
+        if (acc instanceof Field f){
+            checkFieldOrMethod(f);
+            f.setAccessible(true);
+            field = f;
+        }
+        if (acc instanceof Method m){
+            checkFieldOrMethod(m);
+            if (m.getParameters().length != 1){
+                throw new BeanDefinitionException(
+                        String.format("Cannot inject a non-setter method %s for bean '%s': %s", m.getName(), def.getName(), def.getBeanClass().getName()));
+            }
+            m.setAccessible(true);
+            method = m;
+        }
+        String accessibleName = field != null ? field.getName():method.getName();
+        Class<?> accessibleType = field != null? field.getType() : method.getParameterTypes()[0];
+
+        if (value != null && autowired != null){
+            throw new BeanCreationException(String.format("Cannot specify both @Autowired and @Value when inject %ss.%s for bean '%s':'%s'",
+                    clazz.getSimpleName(),accessibleName,def.getName(),def.getBeanClass().getName()));
+        }
+
+        // @Value 注入
+        if (value != null){
+            Object propValue = this.propertyResolver.getRequiredProperty(value.value(),accessibleType);
+            if (field != null){
+                logger.atDebug().log("Field injection: {}.{} = {}",def.getBeanClass().getName(),accessibleName,propValue);
+                field.set(bean,propValue);
+            }
+            if (method != null){
+                logger.atDebug().log("Method injection: {}.{} ({})",def.getBeanClass().getName(),accessibleName,propValue);
+                method.invoke(bean,propValue);
+            }
+        }
+
+        // TODO: @Autowired 注入
+        if (autowired != null){
+            String name = autowired.name();
+            boolean required = autowired.value();
+            Object depends = name.isEmpty() ? findBean(accessibleType) : findBean(name,accessibleType);
+        }
+
+
+    }
+
+    // TODO:
+    private Object findBean(String name, Class<?> accessibleType) {
+        return null;
+    }
+
+    @Nullable
+    @SuppressWarnings("unchecked")
+    private <T> T findBean(Class<T> requiredType) {
+        BeanDefinition def = findBeanDefinition(requiredType);
+        if (def == null){
+            return null;
+        }
+        return (T) def.getRequiredInstance();
+    }
+
+    private void checkFieldOrMethod(Member m) {
+        int mode = m.getModifiers();
+        if (Modifier.isStatic(mode)){
+            throw new BeanDefinitionException("Cannot inject static field: " + m);
+        }
+        if (Modifier.isFinal(mode)){
+            if (m instanceof Field field){
+                throw new BeanDefinitionException("Cannot inject final field: " + field);
+            }
+            if (m instanceof Method method){
+                logger.warn("Inject final method should be careful because it is not called on target bean when bean is proxied and may cause NullPointerException.");
+            }
+        }
+    }
+
+    private void initBean(BeanDefinition def) {
+        // 调用 init 方法
+        callMethod(def.getInstance(),def.getInitMethod(),def.getInitMethodName());
+    }
+
+    // TODO:
+    private void callMethod(Object instance, Method initMethod, String initMethodName) {
     }
 
     /**
