@@ -16,7 +16,7 @@ public class Main {
         // resourceResolver.scan().forEach(aClass -> {
         //     System.out.println(aClass.getName());
         // });
-
+        //
         // 验证 PropertyResolver
         // Map<String, Object> configs = YamlUtils.loadYamlAsPlainMap("/application.yaml");
         // Properties props = new Properties();
@@ -24,8 +24,8 @@ public class Main {
         // PropertyResolver pr = new PropertyResolver(props);
         // String property = pr.getProperty("${app.version:1}", String.class);
         // System.out.println(property);
-
         //
+
         new AnnotationConfigApplicationContext(AppConfig.class,null);
     }
 }

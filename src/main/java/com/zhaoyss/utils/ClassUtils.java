@@ -123,4 +123,13 @@ public class ClassUtils {
                 String.format("Multiple methods with @%s found in class: %s", annoClass.getSimpleName(), clazz.getName())
         );
     }
+
+    // 通过方法名称获取非 arg 方法。不在超类种搜索
+    public static Method getNamedMethod(Class<?> clazz, String methodName) {
+        try {
+            return clazz.getDeclaredMethod(methodName);
+        } catch (ReflectiveOperationException e) {
+            throw new BeanDefinitionException(String.format("Method %s not found in class: %s",methodName,clazz.getName()));
+        }
+    }
 }

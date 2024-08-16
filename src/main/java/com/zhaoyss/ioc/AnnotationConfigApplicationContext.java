@@ -43,7 +43,7 @@ public class AnnotationConfigApplicationContext {
         this.beans = createBeanDefinitions(beanClassNames);
         // 创建BeanName检测循环依赖
         this.creatingBeanNames = new HashSet<>();
-        // 创建 @Configuration 类型的Bean
+        // 创建 @Configuration 类型的 Bean
         this.beans.values().stream()
                 // 过滤出@Configuration
                 .filter(this::isConfigurationDefinition).sorted().map(def -> {
@@ -76,6 +76,8 @@ public class AnnotationConfigApplicationContext {
         this.beans.values().forEach(def->{
             initBean(def);
         });
+
+        System.out.println(defs);
     }
 
     // 注入依赖单不调用 init 方法
@@ -143,19 +145,37 @@ public class AnnotationConfigApplicationContext {
             }
         }
 
-        // TODO: @Autowired 注入
+        // @Autowired 注入
         if (autowired != null){
             String name = autowired.name();
             boolean required = autowired.value();
             Object depends = name.isEmpty() ? findBean(accessibleType) : findBean(name,accessibleType);
+            if (required && depends == null){
+                throw new UnsatisfiedDependencyException(String.format("Dependency bean not found when inject %s.%s for bean ‘%s':%s",clazz.getSimpleName(),accessibleName,def.getName(),def.getBeanClass().getName()));
+            }
+            if (depends != null){
+                if (field != null){
+                    logger.atDebug().log("Field injection: {}.{} = {}",def.getBeanClass().getName(),accessibleName,depends);
+                    field.set(bean,depends);
+                }
+                if (method != null){
+                    logger.atDebug().log("Mield injection: {}.{} ({})",def.getBeanClass().getName(),accessibleName,depends);
+                    method.invoke(bean,depends);
+                }
+
+            }
         }
 
 
     }
 
     // TODO:
-    private Object findBean(String name, Class<?> accessibleType) {
-        return null;
+    private <T> T findBean(String name, Class<T> accessibleType) {
+        BeanDefinition def = findBeanDefinition(name, accessibleType);
+        if (def == null){
+            return null;
+        }
+        return (T) def.getRequiredInstance();
     }
 
     @Nullable
@@ -188,8 +208,24 @@ public class AnnotationConfigApplicationContext {
         callMethod(def.getInstance(),def.getInitMethod(),def.getInitMethodName());
     }
 
-    // TODO:
-    private void callMethod(Object instance, Method initMethod, String initMethodName) {
+    private void callMethod(Object beanInstance, Method method, String nameMethod) {
+        // 调用 init/destroy 方法
+        if (method != null){
+            try {
+                method.invoke(beanInstance);
+            } catch (ReflectiveOperationException e) {
+                throw new BeanCreationException(e);
+            }
+        }else if (nameMethod != null){
+            // 查找 initMethod/destroyMethod = "xyz",注意是在实际类型种查找
+            Method named = ClassUtils.getNamedMethod(beanInstance.getClass(),nameMethod);
+            named.setAccessible(true);
+            try {
+                named.invoke(beanInstance);
+            } catch (ReflectiveOperationException e) {
+                throw new BeanCreationException(e);
+            }
+        }
     }
 
     /**
