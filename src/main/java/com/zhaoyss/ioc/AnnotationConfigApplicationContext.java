@@ -34,6 +34,8 @@ public class AnnotationConfigApplicationContext {
     // 在创建 Bean实例的时候，跟踪当前正在创建的所有Bean的名称。检查循环依赖问题。
     Set<String> creatingBeanNames;
 
+    private List<BeanPostProcessor> beanPostProcessors = new ArrayList<>();
+
 
     public AnnotationConfigApplicationContext(Class<?> configClass, PropertyResolver propertyResolver) {
         this.propertyResolver = propertyResolver;
@@ -51,6 +53,16 @@ public class AnnotationConfigApplicationContext {
                     createBeanAsEarlySingleton(def);
                     return def.getName();
                 }).collect(Collectors.toList());
+        // 创建 BeanPostProcessor 类型的Bean
+        List<BeanPostProcessor> processors = this.beans.values().stream()
+                // 过滤出 BeanPostProcessor
+                .filter(this::isBeanPostProcessorDefinition)
+                // 创建BeanPostProcessor实例
+                .map(def->{
+                    return (BeanPostProcessor) createBeanAsEarlySingleton(def);
+                }).collect(Collectors.toList());
+
+        this.beanPostProcessors.addAll(processors);
 
         // 创建其他普通Bean:
         List<BeanDefinition> defs = this.beans.values().stream()
@@ -82,11 +94,27 @@ public class AnnotationConfigApplicationContext {
 
     // 注入依赖单不调用 init 方法
     private void injectBean(BeanDefinition def) {
+        // 获取Bean实例,或者被代理的原始实例
+        Object beanInstance = getProxiedInstance(def);
         try {
-            injectProperties(def,def.getBeanClass(),def.getInstance());
+            injectProperties(def,def.getBeanClass(),beanInstance);
         }catch (ReflectiveOperationException e){
             throw new BeanCreationException(e);
         }
+    }
+
+    private Object getProxiedInstance(BeanDefinition def) {
+        Object beanInstance = def.getInstance();
+        // 如果Proxy改变了原始Bean，又希望注入到原始Bean，则由BeanPostProcessor指定原始Bean
+        List<BeanPostProcessor> reversedBeanPostProcessors = new ArrayList<>(this.beanPostProcessors);
+        Collections.reverse(reversedBeanPostProcessors);
+        for(BeanPostProcessor beanPostProcessor: reversedBeanPostProcessors){
+            Object restoredInstance = beanPostProcessor.postProcessOnSetProperty(beanInstance, def.getName());
+            if (restoredInstance != beanInstance){
+                beanInstance = restoredInstance;
+            }
+        }
+        return beanInstance;
     }
 
     // 在当前类以及父类进行字段和方法注入
@@ -260,6 +288,14 @@ public class AnnotationConfigApplicationContext {
                         String.format("Cannot specify @Autowired when create @Configuration bean '%s': %s.", def.getName(), def.getBeanClass().getName())
                 );
             }
+
+            //BeanPostProcessor 不能依赖其他 Bean， 不允许使用 @Autowired创建
+            final boolean isBeanPostProcessor = isBeanPostProcessorDefinition(def);
+            if (isBeanPostProcessor && autowired != null){
+                throw new BeanCreationException(
+                        String.format("Cannot specify @Autowired when creat BeanPostProcessor ’%s‘:%s.",def.getName(),def.getBeanClass().getName())
+                );
+            }
             // 检查 Value 和 Autowired
             if (value != null && autowired != null) {
                 throw new BeanCreationException(
@@ -283,14 +319,22 @@ public class AnnotationConfigApplicationContext {
                 boolean required = autowired.value();
                 // 依赖的BeanDefinition：
                 BeanDefinition dependsOnDef = name.isEmpty() ? findBeanDefinition(type) : findBeanDefinition(name, type);
-                // 获取依赖 Bean 的实例
-                Object autowiredBeanInstance = dependsOnDef.getInstance();
-                if (autowiredBeanInstance == null) {
-                    // 当前依赖Bean尚未初始化，递归调用初始化该依赖Bean
-                    autowiredBeanInstance = createBeanAsEarlySingleton(dependsOnDef);
+                // 检测required==true?
+                if (required && dependsOnDef == null) {
+                    throw new BeanCreationException(String.format("Missing autowired bean with type '%s' when create bean '%s': %s.", type.getName(),
+                            def.getName(), def.getBeanClass().getName()));
                 }
-                // 参数设置为依赖的Bean实例
-                args[i] = autowiredBeanInstance;
+                if (dependsOnDef != null) {
+                    // 获取依赖Bean:
+                    Object autowiredBeanInstance = dependsOnDef.getInstance();
+                    if (autowiredBeanInstance == null && !isConfiguration && !isBeanPostProcessor) {
+                        // 当前依赖Bean尚未初始化，递归调用初始化该依赖Bean:
+                        autowiredBeanInstance = createBeanAsEarlySingleton(dependsOnDef);
+                    }
+                    args[i] = autowiredBeanInstance;
+                } else {
+                    args[i] = null;
+                }
             }
         }
 
@@ -313,6 +357,19 @@ public class AnnotationConfigApplicationContext {
             }
         }
         def.setInstance(instance);
+
+        // 调用BeanPostProcessor处理Bean
+        for (BeanPostProcessor processor: beanPostProcessors){
+            Object processed = processor.postProcessBeforeInitialization(def.getInstance(), def.getName());
+            if (processed == null){
+                throw new BeanCreationException(String.format("PostBeanProcessor returns null when process bean '%s' by %s.",def.getName(),processor));
+            }
+            // 如果一个 BeanPostProcess 替换了原始Bean，则更新Bean的引用
+            if (def.getInstance() != processed){
+                logger.atDebug().log("Bean {} was replaced by post processor {}.",def.getName(),processor.getClass().getName());
+                def.setInstance(processed);
+            }
+        }
         return def.getInstance();
     }
 
@@ -320,7 +377,7 @@ public class AnnotationConfigApplicationContext {
      * 通过Name查找Bean，不存在时抛出 NoSuchBeanDefinitionException
      */
     @SuppressWarnings("unchecked")
-    private <T> T getBean(String name) {
+    public  <T> T getBean(String name) {
         BeanDefinition def = this.beans.get(name);
         if (def == null) {
             throw new NoSuchBeanDefinitionException(String.format("No bean defined with name '%s'.", name));
@@ -328,8 +385,29 @@ public class AnnotationConfigApplicationContext {
         return (T) def.getRequiredInstance();
     }
 
+    @SuppressWarnings("unchecked")
+    public <T> T getBean(Class<T> requiredType) {
+        BeanDefinition def = findBeanDefinition(requiredType);
+        if (def == null) {
+            throw new NoSuchBeanDefinitionException(String.format("No bean defined with type '%s'.", requiredType));
+        }
+        return (T) def.getRequiredInstance();
+    }
+    @SuppressWarnings("unchecked")
+    public <T> T getBean(String name,Class<T> requiredType){
+        T t = findBean(name,requiredType);
+        if (t == null){
+            throw new NoSuchBeanDefinitionException(String.format("No bean defined with name '%s' and type '%s'.", name, requiredType));
+        }
+        return t;
+    }
+
     private boolean isConfigurationDefinition(BeanDefinition def) {
         return ClassUtils.findAnnotation(def.getBeanClass(), Configuration.class) != null;
+    }
+
+    private boolean isBeanPostProcessorDefinition(BeanDefinition def){
+        return BeanPostProcessor.class.isAssignableFrom(def.getBeanClass());
     }
 
     private Map<String, BeanDefinition> createBeanDefinitions(Set<String> classNameSet) {
