@@ -6,4 +6,9 @@ public class FirstProxyBean extends OriginBean{
     public FirstProxyBean(OriginBean target) {
         this.target = target;
     }
+
+    @Override
+    public String getName() {
+        return target.getName();
+    }
 }

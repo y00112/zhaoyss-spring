@@ -5,7 +5,7 @@ import com.zhaoyss.exception.BeanCreationException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 
-public class BeanDefinition {
+public class BeanDefinition implements Comparable<BeanDefinition>{
 
     // 全局唯一的Bean name
     String name;
@@ -196,5 +196,14 @@ public class BeanDefinition {
                 ", initMethod=" + initMethod +
                 ", destroyMethod=" + destroyMethod +
                 '}';
+    }
+
+    @Override
+    public int compareTo(BeanDefinition def) {
+        int cmp = Integer.compare(this.order, def.order);
+        if (cmp != 0) {
+            return cmp;
+        }
+        return this.name.compareTo(def.name);
     }
 }

@@ -38,5 +38,3 @@ public class FirstProxyBeanPostProcessor implements BeanPostProcessor {
         return bean;
     }
 }
-
-// 代理 Bean

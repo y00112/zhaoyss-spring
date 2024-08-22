@@ -5,15 +5,18 @@ import com.zhaoyss.entity.InjectProxyOnConstructorBean;
 import com.zhaoyss.entity.OriginBean;
 import com.zhaoyss.entity.SecondProxyBean;
 import com.zhaoyss.io.PropertyResolver;
-import com.zhaoyss.io.ResourceResolver;
 import com.zhaoyss.ioc.AnnotationConfigApplicationContext;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
-import java.lang.reflect.Field;
-import java.util.Map;
 import java.util.Properties;
 
-public class Main {
-    public static void main(String[] args) {
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+public class TestZhaoyssSpring {
+
+    @Test
+    void main(){
         // 验证 ResourceResolver
         // ResourceResolver resourceResolver = new ResourceResolver("com.zhaoyss");
         // resourceResolver.scan().forEach(aClass -> {
@@ -33,13 +36,21 @@ public class Main {
 
         // 获取OriginBean的实例，此处获取应该是 SendProxyBeanProxy
         OriginBean proxy = ctx.getBean(OriginBean.class);
-        System.out.println(SecondProxyBean.class + "//" + proxy.getClass());
-        System.out.println(proxy.name);
-        System.out.println(proxy.version);
-        System.out.println("Scan App" + proxy.getName());
+        Assertions.assertSame(SecondProxyBean.class,proxy.getClass());
+
+        // proxy的name和version字段并没有被注入
+        Assertions.assertNull(proxy.name);
+        Assertions.assertNull(proxy.version);
+
+        // 但是调用 proxy 的 getName() 会最终调用原始Bean的getName()从而正确返回
+        Assertions.assertEquals("Scan App",proxy.getName());
+
+        // 获取InjectProxyOnConstructorBean 实例
         var inject = ctx.getBean(InjectProxyOnConstructorBean.class);
-        System.out.println(inject.getClass() + "//" + proxy.getClass());
+        // 注入的OriginBean应该为 Proxy，而且和前面返回的proxy是同一实例
+        Assertions.assertSame(proxy,inject.injected);
     }
+
 
     static PropertyResolver createPropertyResolver() {
         var ps = new Properties();
@@ -64,4 +75,6 @@ public class Main {
         var pr = new PropertyResolver(ps);
         return pr;
     }
+
+
 }

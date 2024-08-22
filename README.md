@@ -14,3 +14,4 @@
 - 创建BeanDefinition，并设置 BeanDefinition 的属性。
 - 创建Bean实例，并通过构造方法和工厂方法注入Bean。
 - 通过字段和set方法注入bean，并调用init方法。
+- 实现BeanPostProcessor，允许用户自定义Bean替换原始Bean

@@ -6,4 +6,9 @@ public class SecondProxyBean extends OriginBean{
     public SecondProxyBean(OriginBean target) {
         this.target = target;
     }
+
+    @Override
+    public String getName() {
+        return target.getName();
+    }
 }
