@@ -12,6 +12,18 @@ import java.lang.reflect.Method;
 
 public class ProxyResolver {
 
+
+    private ProxyResolver(){}
+
+    private static ProxyResolver INSTANCE = null;
+
+    public static ProxyResolver getInstance(){
+        if (INSTANCE == null){
+            INSTANCE = new ProxyResolver();
+        }
+        return INSTANCE;
+    }
+
     // ByteBuddy实例
     ByteBuddy byteBuddy = new ByteBuddy();
 

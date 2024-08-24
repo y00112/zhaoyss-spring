@@ -1,34 +1,22 @@
 package com.zhaoyss.aop;
 
 import com.zhaoyss.annotation.Around;
+import com.zhaoyss.content.ApplicationContextUtils;
+import com.zhaoyss.content.BeanDefinition;
 import com.zhaoyss.content.BeanPostProcessor;
+import com.zhaoyss.content.ConfigurableApplicationContext;
 import com.zhaoyss.exception.AopConfigException;
+import com.zhaoyss.io.PropertyResolver;
 
 import java.lang.annotation.Annotation;
+import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
 import java.util.Map;
 
-// TODO:
-public class AroundProxyBeanPostProcessor<A extends Annotation> implements BeanPostProcessor {
-    Map<String,Object> originBeans = new HashMap<>();
+// 检测每个Bean实例是否带有@Around注解，如果有就根据注解的值查找Bean作为 InvocationHandler，最后创建Proxy。
+// 返回前保存了原始Bean的引用，因为IOC容器在后续的注入阶段要把相关依赖和值注入到原始Bean
+public class AroundProxyBeanPostProcessor extends AnnotationProxyBeanPostProcessor<Around> {
 
-    Class<A> annotationClass;
 
-    public Object postProcessBeforeInitialization(Object bean, String beanName){
-        Class<?> beanClass = bean.getClass();
-        // 检测 @Around 注解
-        Around anno = beanClass.getAnnotation(Around.class);
-        if (anno != null){
-            String handlerName;
-            try {
-                handlerName = (String) anno.annotationType().getMethod("value").invoke(anno);
-            } catch (ReflectiveOperationException  e) {
-                throw new AopConfigException(
-                        String.format("@%s must have value() returned String type.",this.annotationClass.getSimpleName(),e)
-                );
-            }
-        }
-        return null;
-    }
 }

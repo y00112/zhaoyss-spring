@@ -2,7 +2,7 @@ package com.zhaoyss;
 
 import com.zhaoyss.aop.ProxyResolver;
 import com.zhaoyss.content.AnnotationConfigApplicationContext;
-import com.zhaoyss.entity.OriginBean;
+import com.zhaoyss.around.OriginBean;
 import com.zhaoyss.handler.PoliteInvocationHandler;
 import com.zhaoyss.io.PropertyResolver;
 import org.junit.jupiter.api.Assertions;
@@ -21,7 +21,7 @@ public class AopTest {
         // 原始Bean的hello
         Assertions.assertEquals("Hello,Bob.",originBean.hello());
         // 创建Proxy
-        OriginBean proxy = new ProxyResolver().createProxy(originBean, new PoliteInvocationHandler());
+        OriginBean proxy = ProxyResolver.getInstance().createProxy(originBean, new PoliteInvocationHandler());
         System.out.println(proxy.getClass().getName());
         Assertions.assertNull(proxy.name);
         // 调用带 @Polite的方法
