@@ -19,10 +19,9 @@
 ## aop:
 - 通过 ByteBuddy + Annotation 方式实现动态代理
 - @Around 注解 AroundProxyBeanPostProcessor 实现 AOP
-  - 客户端代码需要提供包括：
-  - 带@Around注解的原始Bean
-  - 实现 InvocationHandler 的Bean，名字与 @Around 注解 value 保持一致。
-  - 测试用例 [src/test/java/com/zhaoyss/around/AroundProxyTest.java](src/test/java/com/zhaoyss/around/AroundProxyTest.java)
+  - 测试用例: [framework/zhaoyss-spring-aop/src/test/java/com/zhaoyss/around/AroundProxyTest.java](framework/zhaoyss-spring-aop/src/test/java/com/zhaoyss/around/AroundProxyTest.java)
 - @Before
+  - 测试用例: [framework/zhaoyss-spring-aop/src/test/java/com/zhaoyss/before/BeforeProxyTest.java](framework/zhaoyss-spring-aop/src/test/java/com/zhaoyss/before/BeforeProxyTest.java)
 - @After
+  - 测试用例：[framework/zhaoyss-spring-aop/src/test/java/com/zhaoyss/after/AfterProxyTest.java](framework/zhaoyss-spring-aop/src/test/java/com/zhaoyss/after/AfterProxyTest.java)
 
