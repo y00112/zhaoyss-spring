@@ -29,6 +29,7 @@ public class ProxyResolver {
     ByteBuddy byteBuddy = new ByteBuddy();
 
     // 传入原始Bean、拦截器，返回代理后的实例
+    @SuppressWarnings("unchecked")
     public <T> T createProxy(T bean, InvocationHandler handler) {
         // 目标Bean的Class类型
         Class<?> targetClass = bean.getClass();

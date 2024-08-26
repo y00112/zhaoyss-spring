@@ -15,8 +15,8 @@ public class AfterProxyTest {
         try (var ctx = new AnnotationConfigApplicationContext(AfterApplication.class, createPropertyResolver())) {
             AfterOriginBean proxy = ctx.getBean(AfterOriginBean.class);
             // should change return value:
-            proxy.hello("Bob");
-            proxy.morning("Alice");
+            System.out.println(proxy.hello("Bob"));
+            System.out.println(proxy.morning("Bob"));
             System.out.println();
 
         }
@@ -24,6 +24,7 @@ public class AfterProxyTest {
 
     PropertyResolver createPropertyResolver() {
         var ps = new Properties();
+        ps.put("customer.name", "Bob");
         var pr = new PropertyResolver(ps);
         return pr;
     }

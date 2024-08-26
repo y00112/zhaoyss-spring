@@ -3,7 +3,7 @@
 设计目标：
 - ioc模块：实现ApplicationContext容器与Bean的管理
 - app模块：实现 AOP 功能
-- jdbc模块：时间JdbcTemplate，以及声明式实物管理
+- jdbc模块：实现JdbcTemplate，以及声明式实物管理
 - web模块：实现Web MVC和 REST API
 - boot模块：实现一个简化版的 “Spring Boot”，用于打包运行
 
@@ -24,4 +24,6 @@
   - 测试用例: [framework/zhaoyss-spring-aop/src/test/java/com/zhaoyss/before/BeforeProxyTest.java](framework/zhaoyss-spring-aop/src/test/java/com/zhaoyss/before/BeforeProxyTest.java)
 - @After
   - 测试用例：[framework/zhaoyss-spring-aop/src/test/java/com/zhaoyss/after/AfterProxyTest.java](framework/zhaoyss-spring-aop/src/test/java/com/zhaoyss/after/AfterProxyTest.java)
-
+## jdbc:
+- 实现JdbcTemplate
+- 实现声明式事务

@@ -8,10 +8,10 @@ import com.zhaoyss.annotation.Component;
 public class AfterOriginBean {
 
     public String hello(String name) {
-        return "Hello, " + name + ".";
+        return "Hello,Word.";
     }
 
     public String morning(String name) {
-        return "Morning, " + name + ".";
+        return "Hello,Word.";
     }
 }

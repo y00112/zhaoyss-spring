@@ -1,9 +1,12 @@
 app:
-  title: Summer Framework
+  title: zhaoyss-spring
   version: 1.0.0
-summer:
+zhaoyss:
   datasource:
-    auto-commit: ${AUTO_COMMIT:false}
+      url: jdbc:sqlite:test.db
+      driver-class-name: org.sqlite.JDBC
+      username: sa
+      password:
 other:
   deep:
     deep:

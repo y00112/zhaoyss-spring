@@ -10,8 +10,10 @@ public abstract class AfterInvocationHandlerAdapter implements InvocationHandler
 
     @Override
     public final Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-        Object ret = method.invoke(method, args);
-        return after(proxy, ret, method, args);
+        // Ensure the target object is the proxy itself or a compatible type
+        System.out.println(proxy.getClass());
+        Object result = method.invoke(method, args);
+        return after(proxy, result, method, args);
     }
 }
 
