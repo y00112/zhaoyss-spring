@@ -30,6 +30,7 @@
         <com.zaxxer.version>5.0.1</com.zaxxer.version>
         <org.xerial.version>3.41.2.2</org.xerial.version>
         <jakarta.servlet.version>6.0.0</jakarta.servlet.version>
+        <jackson.version>2.14.2</jackson.version>
     </properties>
 
 
@@ -52,6 +53,13 @@
                 <artifactId>logback-classic</artifactId>
                 <version>${ch.qos.logback.version}</version>
             </dependency>
+
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-databind</artifactId>
+                <version>${jackson.version}</version>
+            </dependency>
+
 
             <dependency>
                 <groupId>org.yaml</groupId>
