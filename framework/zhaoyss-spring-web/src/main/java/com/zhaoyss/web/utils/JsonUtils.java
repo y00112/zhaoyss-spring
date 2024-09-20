@@ -36,8 +36,20 @@ public class JsonUtils {
     }
 
     public static void writeJson(Writer writer, Object obj) throws IOException {
+        // try {
+        //     OBJECT_MAPPER.writeValue(writer, obj);
+        // } catch (JsonProcessingException e) {
+        //     throw new UncheckedIOException(e);
+        // }
+
         try {
-            OBJECT_MAPPER.writeValue(writer, obj);
+            if (obj instanceof String) {
+                // 如果 obj 是字符串，直接写入
+                writer.write((String) obj);
+            } else {
+                // 否则，使用 Jackson 序列化
+                OBJECT_MAPPER.writeValue(writer, obj);
+            }
         } catch (JsonProcessingException e) {
             throw new UncheckedIOException(e);
         }
