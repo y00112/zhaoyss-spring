@@ -34,6 +34,7 @@
         <freemarker.version>2.3.32</freemarker.version>
         <spring.test.version>6.0.0</spring.test.version>
         <spring.web.version>6.0.0</spring.web.version>
+        <tomcat.version>10.1.17</tomcat.version>
     </properties>
 
 
@@ -119,6 +120,18 @@
                 <version>${spring.web.version}</version>
                 <scope>test</scope>
             </dependency>
+
+            <dependency>
+                <groupId>org.apache.tomcat.embed</groupId>
+                <artifactId>tomcat-embed-core</artifactId>
+                <version>${tomcat.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.apache.tomcat.embed</groupId>
+                <artifactId>tomcat-embed-jasper</artifactId>
+                <version>${tomcat.version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
@@ -128,12 +141,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <configuration>
-                    <source>21</source>
-                    <target>21</target>
-                </configuration>
             </plugin>
         </plugins>
     </build>
-
 </project>

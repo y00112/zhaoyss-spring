@@ -3,7 +3,6 @@ package com.zhaoyss.web;
 import com.zhaoyss.annotation.*;
 import com.zhaoyss.content.ApplicationContext;
 import com.zhaoyss.content.ConfigurableApplicationContext;
-import com.zhaoyss.entity.A;
 import com.zhaoyss.exception.ErrorResponseException;
 import com.zhaoyss.exception.NestedRuntimeException;
 import com.zhaoyss.exception.ServerErrorException;
@@ -13,7 +12,6 @@ import com.zhaoyss.utils.ClassUtils;
 import com.zhaoyss.web.utils.JsonUtils;
 import com.zhaoyss.web.utils.PathUtils;
 import com.zhaoyss.web.utils.WebUtils;
-import jakarta.servlet.ServletConfig;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletOutputStream;
@@ -33,10 +31,9 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Parameter;
-import java.net.URI;
-import java.rmi.ServerError;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -87,6 +84,9 @@ public class DispatcherServlet extends HttpServlet {
         }
     }
 
+    /**
+     * 处理来自客户端的 HTTP 请求
+     */
     private void doService(HttpServletRequest req, HttpServletResponse resp, List<Dispatcher> dispatchers) throws IOException, ServletException {
         String url = req.getRequestURI();
         try {
@@ -106,11 +106,15 @@ public class DispatcherServlet extends HttpServlet {
         }
     }
 
+    /**
+     * 用来处理多个 Dispathcer 的请求，并根据不同的相应对象类型（如 String,byte[],Map,ModelAndView）来处理返回结果和发送 HTTP 相应
+     */
     private void doService(String url, HttpServletRequest req, HttpServletResponse resp, List<Dispatcher> dispatchers) throws Exception {
         for (Dispatcher dispatcher : dispatchers) {
             Dispatcher.Result result = dispatcher.process(url, req, resp);
             if (result.processed()) {
                 Object r = result.returnObject();
+                System.out.println();
                 if (dispatcher.isRest) {
                     // send rest response：
                     if (!resp.isCommitted()) {
@@ -122,19 +126,25 @@ public class DispatcherServlet extends HttpServlet {
                             PrintWriter pw = resp.getWriter();
                             pw.write(s);
                             pw.flush();
+                        }else if (r instanceof byte[] data) {
+                            // send as response body
+                            ServletOutputStream output = resp.getOutputStream();
+                            output.write(data);
+                            output.flush();
+                        } else if (r instanceof Map<?,?> map){
+                            // send as response body
+                            PrintWriter pw = resp.getWriter();
+                            JsonUtils.writeJson(pw,map);
+                            pw.flush();
                         }
-                    } else if (r instanceof byte[] data) {
-                        // send as response body
-                        ServletOutputStream output = resp.getOutputStream();
-                        output.write(data);
-                        output.flush();
-                    } else {
-                        throw new ServletException("Unable to process REST result when handle url: " + url);
+                        else {
+                            throw new ServletException("Unable to process REST result when handle url: " + url);
+                        }
+                    } else if (!dispatcher.isVoid) {
+                        PrintWriter pw = resp.getWriter();
+                        JsonUtils.writeJson(pw, r);
+                        pw.flush();
                     }
-                } else if (!dispatcher.isVoid) {
-                    PrintWriter pw = resp.getWriter();
-                    JsonUtils.writeJson(pw, r);
-                    pw.flush();
                 } else {
                     // process MVC:
                     if (!resp.isCommitted()) {
@@ -260,6 +270,9 @@ public class DispatcherServlet extends HttpServlet {
 
 }
 
+/**
+ * 请求调度器
+ */
 class Dispatcher {
     private static final Result NOT_PROCESSED = new Result(false, null);
     // 是否返回REST

@@ -5,7 +5,6 @@ import jakarta.servlet.http.HttpServletResponse;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.stream.Stream;
 
 public class ModelAndView {
 
@@ -27,8 +26,20 @@ public class ModelAndView {
         }
     }
 
+    public ModelAndView(String viewName, String modelName, Object modelObject) {
+        this(viewName, HttpServletResponse.SC_OK, null);
+        addModel(modelName, modelObject);
+    }
+
     public <K, V> ModelAndView(String viewName, Map<String,Object> model) {
         this(viewName,HttpServletResponse.SC_OK,model);
+    }
+
+    public void addModel(String key, Object value) {
+        if (this.model == null) {
+            this.model = new HashMap<>();
+        }
+        this.model.put(key, value);
     }
 
     private void addModel(Map<String, Object> map) {

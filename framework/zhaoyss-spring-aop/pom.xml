@@ -11,7 +11,7 @@
     <artifactId>zhaoyss-spring-aop</artifactId>
     <packaging>jar</packaging>
 
-    <name>zhaoyss-spring-apo</name>
+    <name>zhaoyss-spring-aop</name>
     <url>http://maven.apache.org</url>
 
     <properties>

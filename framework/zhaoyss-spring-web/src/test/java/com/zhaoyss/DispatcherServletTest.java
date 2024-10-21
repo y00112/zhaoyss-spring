@@ -15,13 +15,13 @@ import org.springframework.mock.web.MockHttpSession;
 import org.springframework.mock.web.MockServletContext;
 
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class DispatcherServletTest {
 
@@ -88,6 +88,36 @@ public class DispatcherServletTest {
         assertEquals("application/json",resp.getContentType());
         assertEquals("{\"action\":{\"name\":\"Bob\"}}", resp.getContentAsString());
     }
+
+    @Test
+    void getApiGreeting2() throws IOException, ServletException {
+        var req = createMockRequest("GET","/greeting",null,Map.of("action","Morning","name","Bob"));
+        var resp = createMockResponse();
+        this.dispatcherServlet.service(req,resp);
+        assertEquals(200,resp.getStatus());
+        assertEquals("Morning;Bob",resp.getContentAsString());
+    }
+
+    @Test
+    void getGreeting3() throws ServletException, IOException {
+        var req = createMockRequest("GET","/greeting",null,Map.of("action","Morning"));
+        var resp = createMockResponse();
+        this.dispatcherServlet.service(req,resp);
+        assertEquals(400,resp.getStatus());
+    }
+
+    @Test
+    // void getApiDownload() throws IOException, ServletException {
+    //     var req = createMockRequest("GET","/api/download/server.jar",null,
+    //             Map.of("hasChecksum","true","length","8","time","123.4","md5","aee9e38cb4d40ec2794542567539b4c8"));
+    //     var resp = createMockResponse();
+    //     this.dispatcherServlet.service(req,resp);
+    //     assertEquals(200,resp.getStatus());
+    //     assertEquals("application/json",resp.getContentType());
+    //     assertTrue(resp.getContentAsString().contains("\"file\":\"server.jar\""));
+    //     assertTrue(resp.getContentAsString().contains("\"length\":8"));
+    //     assertTrue(resp.getContentAsString().contains("\"content\":\"QUFBQUFBQUE=\""));
+    // }
 
     MockServletContext createMockServletContext() {
         Path path = Path.of("./src/test/resource").toAbsolutePath().normalize();

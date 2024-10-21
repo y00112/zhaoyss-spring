@@ -5,6 +5,7 @@ import com.zhaoyss.io.InputStreamCallback;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 
 /**
  * 获取 path 的输入流
@@ -33,5 +34,12 @@ public class ClassPathUtils {
             cl = ClassPathUtils.class.getClassLoader();
         }
         return cl;
+    }
+
+    public static String readString(String path) {
+        return readInputStream(path,(input)->{
+            byte[] data = input.readAllBytes();
+            return new String(data, StandardCharsets.UTF_8);
+        });
     }
 }

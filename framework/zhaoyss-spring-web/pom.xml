@@ -11,7 +11,7 @@
     <artifactId>zhaoyss-spring-web</artifactId>
     <packaging>jar</packaging>
 
-    <name>zhaoyss-spring-boot</name>
+    <name>zhaoyss-spring-web</name>
     <url>http://maven.apache.org</url>
 
     <properties>

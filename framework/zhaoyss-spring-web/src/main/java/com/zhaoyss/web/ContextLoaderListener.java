@@ -25,10 +25,13 @@ public class ContextLoaderListener implements ServletContextListener {
         servletContext.setResponseCharacterEncoding(encoding);
         // 创建ioc容器
         var applicationContext = createApplicationContext(servletContext.getInitParameter("configuration"),propertyResolver);
-        // 实例化DispatcherServlet
+        // register filters:
+        WebUtils.registerFilters(servletContext);
+        // register DispathcerServlet
         WebUtils.registerDispatcherServlet(servletContext,propertyResolver);
 
-        // 注册DispatcherServlet
+        servletContext.setAttribute("applicationContext",applicationContext);
+
     }
 
     private ApplicationContext createApplicationContext(String configClassName, PropertyResolver propertyResolver) {

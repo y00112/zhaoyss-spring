@@ -401,6 +401,7 @@ public class AnnotationConfigApplicationContext implements ConfigurableApplicati
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public <T> List<T> getBeans(Class<?> requiredType) {
         List<BeanDefinition> defs = findBeanDefinitions(requiredType);
         if (defs.isEmpty()){
